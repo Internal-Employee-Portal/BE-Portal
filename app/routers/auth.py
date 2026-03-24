@@ -29,3 +29,20 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
     })
 
     return {"access_token": token, "token_type": "bearer"}
+
+@router.get("/{user_id}")
+def get_auth(user_id: str, db: Session = Depends(get_db)):
+    return db.query(Auth).filter(Auth.user_id == user_id).first()
+
+@router.put("/{user_id}")
+def update_auth(user_id: str, data: dict, db: Session = Depends(get_db)):
+    auth = db.query(Auth).filter(Auth.user_id == user_id).first()
+
+    if not auth:
+        raise HTTPException(404)
+
+    if "is_active" in data:
+        auth.is_active = data["is_active"]
+
+    db.commit()
+    return {"message": "updated"}
