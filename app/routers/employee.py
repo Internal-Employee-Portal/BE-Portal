@@ -12,6 +12,7 @@ from app.schemas.employee import (
     EmployeeUpdate
 )
 
+from app.core.deps import get_current_user, require_admin
 from passlib.context import CryptContext
 
 router = APIRouter(prefix="/employees", tags=["employees"])
@@ -25,7 +26,9 @@ def hash_password(password: str):
 
 # 🔹 직원 생성 (관리자만)
 @router.post("/")
-def create_employee(data: EmployeeCreate, db: Session = Depends(get_db)):
+def create_employee(data: EmployeeCreate,
+                    admin=Depends(require_admin),
+                    db: Session = Depends(get_db)):
 
     # ❗ 임시 관리자 체크 (나중에 JWT로 교체)
     if data.role not in ["ADMIN", "USER"]:
@@ -66,24 +69,43 @@ def get_employees(db: Session = Depends(get_db)):
     return db.query(Employee).all()
 
 
+@router.get("/me")
+def get_my_info(user=Depends(get_current_user), db: Session = Depends(get_db)):
+    emp = db.query(Employee).filter(Employee.id == user["user_id"]).first()
+    return emp
+
+
 # 🔹 개별 조회
 @router.get("/{employee_id}", response_model=EmployeeResponse)
-def get_employee(employee_id: str, db: Session = Depends(get_db)):
+def get_employee(employee_id: str,
+                 user=Depends(get_current_user),
+                 db: Session = Depends(get_db)):
+
+    if user["role"] != "ADMIN" and user["user_id"] != employee_id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
     emp = db.query(Employee).filter(Employee.id == employee_id).first()
 
     if not emp:
-        raise HTTPException(status_code=404, detail="Not found")
+        raise HTTPException(404)
 
     return emp
 
 
 # 🔹 수정
 @router.put("/{employee_id}")
-def update_employee(employee_id: str, data: EmployeeUpdate, db: Session = Depends(get_db)):
+def update_employee(employee_id: str,
+                    data: EmployeeUpdate,
+                    user=Depends(get_current_user),
+                    db: Session = Depends(get_db)):
+
+    if user["role"] != "ADMIN" and user["user_id"] != employee_id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
     emp = db.query(Employee).filter(Employee.id == employee_id).first()
 
     if not emp:
-        raise HTTPException(status_code=404, detail="Not found")
+        raise HTTPException(404)
 
     for key, value in data.dict(exclude_unset=True).items():
         setattr(emp, key, value)
