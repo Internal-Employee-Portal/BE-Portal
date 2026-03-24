@@ -1,7 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.database import engine, Base
+from app.models import auth, employee, department
+
 app = FastAPI()
+
+# 테이블 생성
+Base.metadata.create_all(bind=engine)
 
 app.add_middleware(
     CORSMiddleware,
