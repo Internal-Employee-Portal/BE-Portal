@@ -10,7 +10,6 @@ security = HTTPBearer()
 def get_current_user(token=Depends(security)):
     try:
         payload = jwt.decode(token.credentials, SECRET_KEY, algorithms=[ALGORITHM])
-        print(payload)
         return payload
     except JWTError:
         raise HTTPException(status_code=403, detail="Invalid token")
