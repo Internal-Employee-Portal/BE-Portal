@@ -30,7 +30,6 @@ def create_employee(data: EmployeeCreate,
                     admin=Depends(require_admin),
                     db: Session = Depends(get_db)):
 
-    # ❗ 임시 관리자 체크 (나중에 JWT로 교체)
     if data.role not in ["ADMIN", "USER"]:
         raise HTTPException(status_code=400, detail="Invalid role")
 
@@ -74,6 +73,21 @@ def get_my_info(user=Depends(get_current_user), db: Session = Depends(get_db)):
     emp = db.query(Employee).filter(Employee.id == user["user_id"]).first()
     return emp
 
+@router.get("/full")
+def get_full_employees(db: Session = Depends(get_db)):
+    result = db.query(Employee, Auth).join(Auth, Auth.user_id == Employee.id).all()
+
+    return [
+        {
+            "id": emp.id,
+            "name": emp.name,
+            "position": emp.position,
+            "email": auth.email,
+            "role": auth.role
+        }
+        for emp, auth in result
+    ]
+
 
 # 🔹 개별 조회
 @router.get("/{employee_id}", response_model=EmployeeResponse)
@@ -101,6 +115,15 @@ def update_employee(employee_id: str,
 
     if user["role"] != "ADMIN" and user["user_id"] != employee_id:
         raise HTTPException(status_code=403, detail="Forbidden")
+
+    # if "role" in data:
+    #     auth.role = data["role"]
+    #
+    # if "email" in data:
+    #     auth.email = data["email"]
+    #
+    # if "is_active" in data:
+    #     auth.is_active = data["is_active"]
 
     emp = db.query(Employee).filter(Employee.id == employee_id).first()
 

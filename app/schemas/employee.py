@@ -6,7 +6,7 @@ from typing import Optional
 # 생성 요청
 class EmployeeCreate(BaseModel):
     name: str
-    department_id: Optional[UUID]
+    department_id: Optional[UUID] = None
     position: Optional[str]
 
     email: EmailStr
