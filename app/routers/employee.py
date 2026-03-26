@@ -42,7 +42,9 @@ def create_employee(data: EmployeeCreate,
         name=data.name,
         department_id=data.department_id,
         position=data.position,
-        hire_date=data.hire_date
+        hire_date=data.hire_date,
+        phone=data.phone,
+        employee_code=data.employee_code,
     )
 
     db.add(employee)
@@ -88,7 +90,10 @@ def get_my_info(user=Depends(get_current_user), db: Session = Depends(get_db)):
         "department_id": emp.department_id,
         "email": auth.email,
         "role": auth.role,
-        "is_active": auth.is_active
+        "is_active": auth.is_active,
+        "phone": emp.phone,
+        "hire_date": emp.hire_date,
+        "employee_code": emp.employee_code,
     }
 
 
@@ -102,13 +107,14 @@ def get_full_employees(db: Session = Depends(get_db)):
             "name": emp.name,
             "position": emp.position,
             "email": auth.email,
-            "role": auth.role
+            "role": auth.role,
+            "phone": emp.phone,
+            "employee_code": emp.employee_code,
         }
         for emp, auth in result
     ]
 
 
-# 🔹 개별 조회
 @router.get("/{employee_id}")
 def get_employee(employee_id: str,
                  user=Depends(get_current_user),

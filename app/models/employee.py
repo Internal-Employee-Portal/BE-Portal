@@ -8,6 +8,8 @@ class Employee(Base):
     __tablename__ = "employees"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    phone = Column(String(20))
+    employee_code = Column(String(20), nullable=False)
     name = Column(String(100), nullable=False)
     department_id = Column(UUID(as_uuid=True), ForeignKey("departments.id"))
     position = Column(String(100))

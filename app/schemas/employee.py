@@ -9,6 +9,8 @@ class EmployeeCreate(BaseModel):
     name: str
     department_id: Optional[UUID] = None
     position: Optional[str] = None
+    employee_code: str
+    phone: str
 
     hire_date: Optional[date] = None
 
