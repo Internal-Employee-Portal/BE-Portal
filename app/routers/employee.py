@@ -62,7 +62,6 @@ def create_employee(data: EmployeeCreate,
     return {"message": "Employee created"}
 
 
-# 🔹 전체 조회
 @router.get("/", response_model=list[EmployeeResponse])
 def get_employees(db: Session = Depends(get_db)):
     return db.query(Employee).all()
@@ -70,8 +69,28 @@ def get_employees(db: Session = Depends(get_db)):
 
 @router.get("/me")
 def get_my_info(user=Depends(get_current_user), db: Session = Depends(get_db)):
-    emp = db.query(Employee).filter(Employee.id == user["user_id"]).first()
-    return emp
+    result = (
+        db.query(Employee, Auth)
+        .join(Auth, Auth.user_id == Employee.id)
+        .filter(Employee.id == user["user_id"])
+        .first()
+    )
+
+    if not result:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    emp, auth = result
+
+    return {
+        "id": emp.id,
+        "name": emp.name,
+        "position": emp.position,
+        "department_id": emp.department_id,
+        "email": auth.email,
+        "role": auth.role,
+        "is_active": auth.is_active
+    }
+
 
 @router.get("/full")
 def get_full_employees(db: Session = Depends(get_db)):
