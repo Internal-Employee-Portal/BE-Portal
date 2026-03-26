@@ -1,13 +1,16 @@
 from pydantic import BaseModel, EmailStr
 from uuid import UUID
 from typing import Optional
+from datetime import date
 
 
 # 생성 요청
 class EmployeeCreate(BaseModel):
     name: str
     department_id: Optional[UUID] = None
-    position: Optional[str]
+    position: Optional[str] = None
+
+    hire_date: Optional[date] = None
 
     email: EmailStr
     password: str

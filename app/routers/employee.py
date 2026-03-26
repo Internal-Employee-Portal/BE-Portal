@@ -24,7 +24,6 @@ def hash_password(password: str):
     return pwd_context.hash(password)
 
 
-# 🔹 직원 생성 (관리자만)
 @router.post("/")
 def create_employee(data: EmployeeCreate,
                     admin=Depends(require_admin),
@@ -42,7 +41,8 @@ def create_employee(data: EmployeeCreate,
         id=uuid4(),
         name=data.name,
         department_id=data.department_id,
-        position=data.position
+        position=data.position,
+        hire_date=data.hire_date
     )
 
     db.add(employee)
