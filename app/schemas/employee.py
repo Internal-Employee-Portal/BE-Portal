@@ -29,6 +29,12 @@ class EmployeeResponse(BaseModel):
 
 # 수정
 class EmployeeUpdate(BaseModel):
-    name: Optional[str]
-    department_id: Optional[UUID]
-    position: Optional[str]
+    name: Optional[str] = None
+    department_id: Optional[UUID] = None
+    email: Optional[str] = None
+    position: Optional[str] = None
+    hire_date: Optional[date] = None
+    status: Optional[str] = None
+
+    role: Optional[str] = None
+    is_active: Optional[bool] = None

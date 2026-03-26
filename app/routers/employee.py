@@ -109,7 +109,7 @@ def get_full_employees(db: Session = Depends(get_db)):
 
 
 # 🔹 개별 조회
-@router.get("/{employee_id}", response_model=EmployeeResponse)
+@router.get("/{employee_id}")
 def get_employee(employee_id: str,
                  user=Depends(get_current_user),
                  db: Session = Depends(get_db)):
@@ -125,32 +125,34 @@ def get_employee(employee_id: str,
     return emp
 
 
-# 🔹 수정
-@router.put("/{employee_id}")
-def update_employee(employee_id: str,
-                    data: EmployeeUpdate,
-                    user=Depends(get_current_user),
-                    db: Session = Depends(get_db)):
-
+@router.patch("/{employee_id}")
+def update_employee(
+    employee_id: str,
+    data: EmployeeUpdate,
+    user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     if user["role"] != "ADMIN" and user["user_id"] != employee_id:
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    # if "role" in data:
-    #     auth.role = data["role"]
-    #
-    # if "email" in data:
-    #     auth.email = data["email"]
-    #
-    # if "is_active" in data:
-    #     auth.is_active = data["is_active"]
-
     emp = db.query(Employee).filter(Employee.id == employee_id).first()
+    auth = db.query(Auth).filter(Auth.user_id == employee_id).first()
 
     if not emp:
-        raise HTTPException(404)
+        raise HTTPException(status_code=404, detail="Employee not found")
 
+    # employee 업데이트
     for key, value in data.dict(exclude_unset=True).items():
-        setattr(emp, key, value)
+        if hasattr(emp, key):
+            setattr(emp, key, value)
+
+    # auth 업데이트
+    if auth:
+        if data.role is not None:
+            auth.role = data.role
+
+        if data.is_active is not None:
+            auth.is_active = data.is_active
 
     db.commit()
 
