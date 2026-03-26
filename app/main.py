@@ -2,14 +2,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
 from app.models import auth, employee, department
-from app.routers import auth, employee
+from app.routers import auth, employee, background
+
 
 app = FastAPI()
 
 app.include_router(auth.router)
 app.include_router(employee.router)
+app.include_router(background.router)
 
-# 테이블 생성
 Base.metadata.create_all(bind=engine)
 
 app.add_middleware(
