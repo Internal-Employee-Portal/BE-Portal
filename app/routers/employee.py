@@ -39,10 +39,12 @@ def create_employee(data: EmployeeCreate,
 
     employee = Employee(
         id=uuid4(),
-        name=data.name,
+        fist_name=data.fist_name,
+        last_name=data.last_name,
         department_id=data.department_id,
         position=data.position,
         hire_date=data.hire_date,
+        birth_date=data.birth_date,
         phone=data.phone,
         employee_code=data.employee_code,
     )
@@ -85,7 +87,7 @@ def get_my_info(user=Depends(get_current_user), db: Session = Depends(get_db)):
 
     return {
         "id": emp.id,
-        "name": emp.name,
+        "name": f"{emp.last_name} {emp.first_name}",
         "position": emp.position,
         "department_id": emp.department_id,
         "email": auth.email,
@@ -93,6 +95,7 @@ def get_my_info(user=Depends(get_current_user), db: Session = Depends(get_db)):
         "is_active": auth.is_active,
         "phone": emp.phone,
         "hire_date": emp.hire_date,
+        "birth_date": emp.birth_date,
         "employee_code": emp.employee_code,
     }
 
@@ -104,7 +107,7 @@ def get_full_employees(db: Session = Depends(get_db)):
     return [
         {
             "id": emp.id,
-            "name": emp.name,
+            "name": f"{emp.last_name} {emp.first_name}",
             "position": emp.position,
             "email": auth.email,
             "role": auth.role,

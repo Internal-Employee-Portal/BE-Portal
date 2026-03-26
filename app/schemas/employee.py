@@ -6,13 +6,15 @@ from datetime import date
 
 # 생성 요청
 class EmployeeCreate(BaseModel):
-    name: str
+    fist_name: str
+    last_name: str
     department_id: Optional[UUID] = None
     position: Optional[str] = None
     employee_code: str
     phone: str
 
     hire_date: Optional[date] = None
+    birth_date: date
 
     email: EmailStr
     password: str
