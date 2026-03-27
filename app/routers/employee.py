@@ -5,6 +5,7 @@ from uuid import uuid4
 from app.database import get_db
 from app.models.employee import Employee
 from app.models.auth import Auth
+from app.models.background import Background
 
 from app.schemas.employee import (
     EmployeeCreate,
@@ -131,7 +132,21 @@ def get_employee(employee_id: str,
     if not emp:
         raise HTTPException(404)
 
-    return emp
+    latest_check = db.query(Background).filter(Background.employee_id == employee_id).order_by(Background.requested_at.desc()).first()
+
+    return {
+        "first_name": emp.first_name,
+        "department_id": emp.department_id,
+        "position": emp.position,
+        "birth_date": emp.birth_date,
+        "status": emp.status,
+        "employee_code": emp.employee_code,
+        "phone": emp.phone,
+        "id": emp.id,
+        "last_name": emp.last_name,
+        "hire_date": emp.hire_date,
+        "latest_background": latest_check,
+    }
 
 
 @router.patch("/{employee_id}")
