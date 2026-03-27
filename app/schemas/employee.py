@@ -39,6 +39,8 @@ class EmployeeUpdate(BaseModel):
     position: Optional[str] = None
     hire_date: Optional[date] = None
     status: Optional[str] = None
+    phone: Optional[str] = None
+    birth_date: Optional[date] = None
 
     role: Optional[str] = None
     is_active: Optional[bool] = None

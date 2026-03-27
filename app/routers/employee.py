@@ -128,13 +128,15 @@ def get_employee(employee_id: str,
         raise HTTPException(status_code=403, detail="Forbidden")
 
     emp = db.query(Employee).filter(Employee.id == employee_id).first()
-
     if not emp:
         raise HTTPException(404)
+
+    auth = db.query(Auth).filter(Auth.user_id == emp.id).first()
 
     latest_check = db.query(Background).filter(Background.employee_id == employee_id).order_by(Background.requested_at.desc()).first()
 
     return {
+        "email": auth.email,
         "first_name": emp.first_name,
         "department_id": emp.department_id,
         "position": emp.position,
@@ -144,6 +146,7 @@ def get_employee(employee_id: str,
         "phone": emp.phone,
         "id": emp.id,
         "last_name": emp.last_name,
+        "name": f"{emp.last_name} {emp.first_name}",
         "hire_date": emp.hire_date,
         "latest_background": latest_check,
     }
