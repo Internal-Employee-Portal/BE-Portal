@@ -1,25 +1,23 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
 from uuid import uuid4
+from sqlalchemy.orm import Session
+from passlib.context import CryptContext
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.database import get_db
 from app.models.employee import Employee
 from app.models.auth import Auth
 from app.models.background import Background
-
+from app.core.deps import get_current_user, require_admin
 from app.schemas.employee import (
     EmployeeCreate,
     EmployeeResponse,
     EmployeeUpdate
 )
 
-from app.core.deps import get_current_user, require_admin
-from passlib.context import CryptContext
 
 router = APIRouter(prefix="/employees", tags=["employees"])
 
 pwd_context = CryptContext(schemes=["bcrypt"])
-
 
 def hash_password(password: str):
     return pwd_context.hash(password)
@@ -40,7 +38,7 @@ def create_employee(data: EmployeeCreate,
 
     employee = Employee(
         id=uuid4(),
-        fist_name=data.fist_name,
+        first_name=data.first_name,
         last_name=data.last_name,
         department_id=data.department_id,
         position=data.position,
@@ -68,7 +66,7 @@ def create_employee(data: EmployeeCreate,
 
 
 @router.get("/", response_model=list[EmployeeResponse])
-def get_employees(db: Session = Depends(get_db)):
+def get_employees(admin=Depends(require_admin), db: Session = Depends(get_db)):
     return db.query(Employee).all()
 
 
@@ -102,7 +100,7 @@ def get_my_info(user=Depends(get_current_user), db: Session = Depends(get_db)):
 
 
 @router.get("/full")
-def get_full_employees(db: Session = Depends(get_db)):
+def get_full_employees(admin=Depends(require_admin), db: Session = Depends(get_db)):
     result = db.query(Employee, Auth).join(Auth, Auth.user_id == Employee.id).all()
 
     return [
@@ -137,6 +135,8 @@ def get_employee(employee_id: str,
 
     return {
         "email": auth.email,
+        "role": auth.role,
+        "is_active": auth.is_active,
         "first_name": emp.first_name,
         "department_id": emp.department_id,
         "position": emp.position,

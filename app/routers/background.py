@@ -10,6 +10,7 @@ from app.models.background import Background
 from uuid import uuid4
 from app.database import get_db
 from datetime import datetime
+from app.core.deps import require_admin
 
 
 load_dotenv()
@@ -17,7 +18,7 @@ BASE_URL = os.getenv("BACKGROUND_URL")
 router = APIRouter(prefix="/background", tags=["background"])
 
 @router.post("/")
-async def create(data: Create, db: Session = Depends(get_db)):
+async def create(data: Create, admin=Depends(require_admin), db: Session = Depends(get_db)):
     emp = db.query(Employee).filter(Employee.id == data.employeeId).first()
     if not emp:
         raise HTTPException(status_code=404, detail="Employee not found")
@@ -61,7 +62,7 @@ async def create(data: Create, db: Session = Depends(get_db)):
     return res
 
 @router.get("/")
-async def  get_checks(employeeId: str, db: Session = Depends(get_db)):
+async def  get_checks(employeeId: str, admin=Depends(require_admin), db: Session = Depends(get_db)):
     checks = db.query(Background).filter(Background.employee_id == employeeId).order_by(Background.requested_at.desc()).all()
 
     backgrounds = [
@@ -78,7 +79,7 @@ async def  get_checks(employeeId: str, db: Session = Depends(get_db)):
 
 
 @router.get("/sync")
-async def  sync_checks(employeeId: str, db: Session = Depends(get_db)):
+async def  sync_checks(employeeId: str, admin=Depends(require_admin), db: Session = Depends(get_db)):
     emp = db.query(Employee).filter(Employee.id == employeeId).first()
     if not emp:
         raise HTTPException(status_code=404, detail="Employee not found")
@@ -134,7 +135,7 @@ async def  sync_checks(employeeId: str, db: Session = Depends(get_db)):
     return {"message": "Sync completed"}
 
 @router.get("/{checkId}")
-async def get_check(checkId: str, db: Session = Depends(get_db)):
+async def get_check(checkId: str, admin=Depends(require_admin), db: Session = Depends(get_db)):
     check = db.query(Background).filter(Background.check_id == checkId).first()
 
     if check and check.status != "pending" and check.criminal_record is not None:
