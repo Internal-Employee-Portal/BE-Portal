@@ -40,12 +40,12 @@ def create_employee(data: EmployeeCreate,
         id=uuid4(),
         first_name=data.first_name,
         last_name=data.last_name,
+        employee_code=data.employee_code,
+        phone=data.phone,
+        birth_date=data.birth_date,
         department_id=data.department_id,
         position=data.position,
         hire_date=data.hire_date,
-        birth_date=data.birth_date,
-        phone=data.phone,
-        employee_code=data.employee_code,
     )
 
     db.add(employee)
