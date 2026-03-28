@@ -44,4 +44,3 @@ class EmployeeUpdate(BaseModel):
     status: Optional[str] = None
 
     role: Optional[str] = None
-    is_active: Optional[bool] = None

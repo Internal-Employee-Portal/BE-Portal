@@ -212,6 +212,8 @@ def update_employee(
     emp = db.query(Employee).filter(Employee.id == employee_id, Employee.deleted_at.is_(None)).first()
     auth = db.query(Auth).filter(Auth.user_id == employee_id, Auth.deleted_at.is_(None)).first()
 
+    prev_status = emp.status
+
     if not emp:
         raise HTTPException(status_code=404, detail="Employee not found")
 
@@ -222,14 +224,11 @@ def update_employee(
 
     # auth 업데이트
     if auth:
-        if data.status == "RESIGNED" and emp.status != "RESIGNED":
+        if data.status and data.status == "RESIGNED" and prev_status != "RESIGNED":
             auth.is_active = False
 
         if data.role is not None:
             auth.role = data.role
-
-        if data.is_active is not None:
-            auth.is_active = data.is_active
 
     db.commit()
 
