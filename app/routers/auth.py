@@ -16,13 +16,13 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(Auth).filter(Auth.email == data.email, Auth.deleted_at.is_(None)).first()
 
     if not user:
-        raise HTTPException(status_code=400, detail="Invalid email")
+        raise HTTPException(status_code=400, detail="이메일 또는 비밀번호가 올바르지 않습니다.")
 
     if not user.is_active:
         raise HTTPException(status_code=403, detail="비활성화 계정입니다. 관리자에게 문의하세요.")
 
     if not verify_password(data.password, user.password_hash):
-        raise HTTPException(status_code=400, detail="Wrong password")
+        raise HTTPException(status_code=400, detail="이메일 또는 비밀번호가 올바르지 않습니다.")
 
     token = create_access_token({
         "user_id": str(user.user_id),
