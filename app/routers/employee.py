@@ -121,6 +121,7 @@ def get_full_employees(admin=Depends(require_admin), db: Session = Depends(get_d
             Employee.employee_code,
             Employee.hire_date,
             Employee.department_id,
+            Employee.status,
             Auth.email,
             Auth.role,
             Department.name.label("department_name"),
@@ -142,6 +143,7 @@ def get_full_employees(admin=Depends(require_admin), db: Session = Depends(get_d
             "hire_date": r.hire_date,
             "department_id": r.department_id,
             "department_name": r.department_name,
+            "status": r.status,
         }
         for r in result
     ]
@@ -210,6 +212,9 @@ def update_employee(
 
     # auth 업데이트
     if auth:
+        if data.status == "RESIGNED" and emp.status != "RESIGNED":
+            auth.is_active = False
+
         if data.role is not None:
             auth.role = data.role
 
