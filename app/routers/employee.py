@@ -7,6 +7,7 @@ from app.database import get_db
 from app.models.employee import Employee
 from app.models.auth import Auth
 from app.models.background import Background
+from app.models.department import Department
 from app.core.deps import get_current_user, require_admin
 from app.schemas.employee import (
     EmployeeCreate,
@@ -110,19 +111,39 @@ def get_my_info(user=Depends(get_current_user), db: Session = Depends(get_db)):
 
 @router.get("/full")
 def get_full_employees(admin=Depends(require_admin), db: Session = Depends(get_db)):
-    result = db.query(Employee, Auth).join(Auth, Auth.user_id == Employee.id).all()
+    result = (
+        db.query(
+            Employee.id.label("id"),
+            Employee.last_name,
+            Employee.first_name,
+            Employee.position,
+            Employee.phone,
+            Employee.employee_code,
+            Employee.hire_date,
+            Employee.department_id,
+            Auth.email,
+            Auth.role,
+            Department.name.label("department_name"),
+        )
+        .join(Auth, Auth.user_id == Employee.id)
+        .outerjoin(Department, Department.id == Employee.department_id)
+        .all()
+    )
 
     return [
         {
-            "id": emp.id,
-            "name": f"{emp.last_name} {emp.first_name}",
-            "position": emp.position,
-            "email": auth.email,
-            "role": auth.role,
-            "phone": emp.phone,
-            "employee_code": emp.employee_code,
+            "id": r.id,
+            "name": f"{r.last_name} {r.first_name}",
+            "position": r.position,
+            "email": r.email,
+            "role": r.role,
+            "phone": r.phone,
+            "employee_code": r.employee_code,
+            "hire_date": r.hire_date,
+            "department_id": r.department_id,
+            "department_name": r.department_name,
         }
-        for emp, auth in result
+        for r in result
     ]
 
 
@@ -142,12 +163,17 @@ def get_employee(employee_id: str,
 
     latest_check = db.query(Background).filter(Background.employee_id == employee_id).order_by(Background.requested_at.desc()).first()
 
+    dept = None
+    if emp.department_id:
+        dept = db.query(Department.name).filter(Department.id == emp.department_id).first()
+
     return {
         "email": auth.email,
         "role": auth.role,
         "is_active": auth.is_active,
         "first_name": emp.first_name,
         "department_id": emp.department_id,
+        "department_name": dept.name if dept else None,
         "position": emp.position,
         "birth_date": emp.birth_date,
         "status": emp.status,
