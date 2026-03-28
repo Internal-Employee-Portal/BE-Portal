@@ -17,7 +17,7 @@ load_dotenv()
 BASE_URL = os.getenv("BACKGROUND_URL")
 router = APIRouter(prefix="/background", tags=["background"])
 
-@router.post("/")
+@router.post("")
 async def create(data: Create, admin=Depends(require_admin), db: Session = Depends(get_db)):
     emp = db.query(Employee).filter(Employee.id == data.employeeId).first()
     if not emp:
@@ -61,7 +61,7 @@ async def create(data: Create, admin=Depends(require_admin), db: Session = Depen
 
     return res
 
-@router.get("/")
+@router.get("")
 async def  get_checks(employeeId: str, admin=Depends(require_admin), db: Session = Depends(get_db)):
     checks = db.query(Background).filter(Background.employee_id == employeeId).order_by(Background.requested_at.desc()).all()
 

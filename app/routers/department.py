@@ -15,7 +15,7 @@ from app.schemas.department import (
 
 router = APIRouter(prefix="/departments", tags=["Departments"])
 
-@router.post("/", response_model=DepartmentResponse)
+@router.post("", response_model=DepartmentResponse)
 def create_department(data: DepartmentCreate, admin=Depends(require_admin),db: Session = Depends(get_db)):
     dept = Department(
         name=data.name,
@@ -28,7 +28,7 @@ def create_department(data: DepartmentCreate, admin=Depends(require_admin),db: S
 
     return dept
 
-@router.get("/")
+@router.get("")
 def get_departments(admin=Depends(require_admin), db: Session = Depends(get_db)):
     results = (
         db.query(

@@ -26,7 +26,7 @@ def hash_password(password: str):
     return pwd_context.hash(password)
 
 
-@router.post("/")
+@router.post("")
 def create_employee(data: EmployeeCreate,
                     admin=Depends(require_admin),
                     db: Session = Depends(get_db)):
@@ -68,7 +68,7 @@ def create_employee(data: EmployeeCreate,
     return {"message": "Employee created"}
 
 
-@router.get("/")
+@router.get("")
 def get_employees(admin=Depends(require_admin), db: Session = Depends(get_db)):
     return db.query(Employee).filter(Employee.deleted_at.is_(None)).all()
 
