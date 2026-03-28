@@ -1,4 +1,5 @@
 from uuid import uuid4
+from sqlalchemy import and_
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from fastapi import APIRouter, Depends, HTTPException
@@ -127,7 +128,7 @@ def get_full_employees(admin=Depends(require_admin), db: Session = Depends(get_d
             Department.name.label("department_name"),
         )
         .join(Auth, Auth.user_id == Employee.id)
-        .outerjoin(Department, Department.id == Employee.department_id)
+        .outerjoin(Department, and_(Department.id == Employee.department_id, Department.deleted_at == None))
         .all()
     )
 

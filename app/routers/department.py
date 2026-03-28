@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from datetime import datetime
 from uuid import UUID
 
 from app.core.deps import require_admin
@@ -109,3 +109,27 @@ def update_department(
     db.refresh(dept)
 
     return dept
+
+@router.delete("/{dept_id}")
+def remove_department(dept_id: str, db: Session = Depends(get_db), admin=Depends(require_admin)):
+    department = db.query(Department).filter(
+        Department.id == dept_id,
+        Department.deleted_at.is_(None)
+    ).first()
+
+    if not department:
+        raise HTTPException(status_code=404, detail="Department not found")
+
+    db.query(Employee).filter(
+        Employee.department_id == dept_id,
+        Employee.deleted_at is None
+    ).update(
+        {Employee.department_id: None},
+        synchronize_session=False
+    )
+
+    department.deleted_at = datetime.utcnow()
+
+    db.commit()
+
+    return {"message": "부서가 삭제되었습니다."}
