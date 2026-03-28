@@ -84,23 +84,30 @@ def get_admin_list(admin=Depends(require_admin),db: Session = Depends(get_db)):
 
 @router.get("/me")
 def get_my_info(user=Depends(get_current_user), db: Session = Depends(get_db)):
-    result = (
+    emp, auth = (
         db.query(Employee, Auth)
         .join(Auth, Auth.user_id == Employee.id)
-        .filter(Employee.id == user["user_id"])
+        .filter(Employee.id == user["user_id"], Employee.deleted_at.is_(None))
         .first()
     )
 
-    if not result:
+    if not emp:
         raise HTTPException(status_code=404, detail="User not found")
 
-    emp, auth = result
+    dept = None
+    if emp.department_id:
+        dept = (
+            db.query(Department)
+            .filter(Department.id == emp.department_id, Department.deleted_at.is_(None))
+            .first()
+        )
 
     return {
         "id": emp.id,
         "name": f"{emp.last_name} {emp.first_name}",
         "position": emp.position,
         "department_id": emp.department_id,
+        "department_name": dept.name if dept else None,
         "email": auth.email,
         "role": auth.role,
         "is_active": auth.is_active,
