@@ -1,5 +1,6 @@
 from uuid import uuid4
 from sqlalchemy import and_
+from datetime import datetime
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from fastapi import APIRouter, Depends, HTTPException
@@ -69,13 +70,13 @@ def create_employee(data: EmployeeCreate,
 
 @router.get("/")
 def get_employees(admin=Depends(require_admin), db: Session = Depends(get_db)):
-    return db.query(Employee).all()
+    return db.query(Employee).filter(Employee.deleted_at.is_(None)).all()
 
 @router.get("/admin/list")
 def get_admin_list(admin=Depends(require_admin),db: Session = Depends(get_db)):
     list = db.query(Employee.id, Employee.last_name, Employee.first_name, Auth.email, Employee.employee_code) \
         .join(Auth, Auth.user_id == Employee.id) \
-        .filter(Auth.role == "ADMIN", Auth.is_active == True) \
+        .filter(Auth.role == "ADMIN", Auth.is_active == True, Employee.deleted_at.is_(None)).all() \
         .all()
 
     return [r._asdict() for r in list]
@@ -129,6 +130,7 @@ def get_full_employees(admin=Depends(require_admin), db: Session = Depends(get_d
         )
         .join(Auth, Auth.user_id == Employee.id)
         .outerjoin(Department, and_(Department.id == Employee.department_id, Department.deleted_at == None))
+        .filter(Employee.deleted_at.is_(None))
         .all()
     )
 
@@ -158,17 +160,17 @@ def get_employee(employee_id: str,
     if user["role"] != "ADMIN" and user["user_id"] != employee_id:
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    emp = db.query(Employee).filter(Employee.id == employee_id).first()
+    emp = db.query(Employee).filter(Employee.id == employee_id, Employee.deleted_at.is_(None)).first()
     if not emp:
         raise HTTPException(404)
 
-    auth = db.query(Auth).filter(Auth.user_id == emp.id).first()
+    auth = db.query(Auth).filter(Auth.user_id == emp.id, Auth.deleted_at.is_(None)).first()
 
     latest_check = db.query(Background).filter(Background.employee_id == employee_id).order_by(Background.requested_at.desc()).first()
 
     dept = None
     if emp.department_id:
-        dept = db.query(Department.name).filter(Department.id == emp.department_id).first()
+        dept = db.query(Department.name).filter(Department.id == emp.department_id, Department.deleted_at.is_(None)).first()
 
     return {
         "email": auth.email,
@@ -200,8 +202,8 @@ def update_employee(
     if user["role"] != "ADMIN" and user["user_id"] != employee_id:
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    emp = db.query(Employee).filter(Employee.id == employee_id).first()
-    auth = db.query(Auth).filter(Auth.user_id == employee_id).first()
+    emp = db.query(Employee).filter(Employee.id == employee_id, Employee.deleted_at.is_(None)).first()
+    auth = db.query(Auth).filter(Auth.user_id == employee_id, Auth.deleted_at.is_(None)).first()
 
     if not emp:
         raise HTTPException(status_code=404, detail="Employee not found")
@@ -225,3 +227,31 @@ def update_employee(
     db.commit()
 
     return {"message": "Updated"}
+
+@router.delete("/{employee_id}")
+def delete_employee(employee_id: str, db: Session = Depends(get_db), admin=Depends(require_admin)):
+    employee = (
+        db.query(Employee)
+        .filter(Employee.id == employee_id, Employee.deleted_at.is_(None))
+        .first()
+    )
+
+    if not employee:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    auth = (
+        db.query(Auth)
+        .filter(Auth.user_id == employee_id, Auth.deleted_at.is_(None))
+        .first()
+    )
+
+    now = datetime.utcnow()
+
+    employee.deleted_at = now
+
+    if auth:
+        auth.deleted_at = now
+
+    db.commit()
+
+    return {"message": "직원 삭제 완료"}
