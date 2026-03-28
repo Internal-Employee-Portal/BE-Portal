@@ -28,7 +28,7 @@ def get_current_user(
         if not emp or not auth:
             raise HTTPException(status_code=401, detail="User not found")
 
-        if not auth.is_active or emp.status != "ACTIVE":
+        if not auth.is_active:
             raise HTTPException(status_code=401, detail="Inactive user")
 
         return {
