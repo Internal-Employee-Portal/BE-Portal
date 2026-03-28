@@ -13,13 +13,13 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 @router.post("/login")
 def login(data: LoginRequest, db: Session = Depends(get_db)):
 
-    user = db.query(Auth).filter(Auth.email == data.email).first()
+    user = db.query(Auth).filter(Auth.email == data.email, Auth.deleted_at.is_(None)).first()
 
     if not user:
         raise HTTPException(status_code=400, detail="Invalid email")
 
     if not user.is_active:
-        raise HTTPException(status_code=403, detail="Inactive user")
+        raise HTTPException(status_code=403, detail="비활성화 계정입니다. 관리자에게 문의하세요.")
 
     if not verify_password(data.password, user.password_hash):
         raise HTTPException(status_code=400, detail="Wrong password")
@@ -61,3 +61,16 @@ def change_password(
     db.commit()
 
     return {"message": "비밀번호 변경 완료"}
+
+@router.patch("/{user_id}")
+def update_auth(user_id: str, data: dict, db: Session = Depends(get_db)):
+    auth = db.query(Auth).filter(Auth.user_id == user_id).first()
+
+    if not auth:
+        raise HTTPException(404)
+
+    if "is_active" in data:
+        auth.is_active = data["is_active"]
+
+    db.commit()
+    return {"message": "updated"}
