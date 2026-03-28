@@ -33,14 +33,15 @@ class EmployeeResponse(BaseModel):
 
 # 수정
 class EmployeeUpdate(BaseModel):
-    name: Optional[str] = None
+    last_name: Optional[str] = None
+    first_name: Optional[str] = None
+    employee_code: Optional[str] = None
+    phone: Optional[str] = None
+    birth_date: Optional[date] = None
     department_id: Optional[UUID] = None
-    email: Optional[str] = None
     position: Optional[str] = None
     hire_date: Optional[date] = None
     status: Optional[str] = None
-    phone: Optional[str] = None
-    birth_date: Optional[date] = None
 
     role: Optional[str] = None
     is_active: Optional[bool] = None
