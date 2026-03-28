@@ -65,9 +65,18 @@ def create_employee(data: EmployeeCreate,
     return {"message": "Employee created"}
 
 
-@router.get("/", response_model=list[EmployeeResponse])
+@router.get("/")
 def get_employees(admin=Depends(require_admin), db: Session = Depends(get_db)):
     return db.query(Employee).all()
+
+@router.get("/admin/list")
+def get_admin_list(admin=Depends(require_admin),db: Session = Depends(get_db)):
+    list = db.query(Employee.id, Employee.last_name, Employee.first_name, Auth.email, Employee.employee_code) \
+        .join(Auth, Auth.user_id == Employee.id) \
+        .filter(Auth.role == "ADMIN", Auth.is_active == True) \
+        .all()
+
+    return [r._asdict() for r in list]
 
 
 @router.get("/me")
