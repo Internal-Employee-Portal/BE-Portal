@@ -102,8 +102,7 @@ def update_department(
     if data.description is not None:
         dept.description = data.description
 
-    if data.manager_id is not None:
-        dept.manager_id = data.manager_id
+    dept.manager_id = data.manager_id
 
     db.commit()
     db.refresh(dept)
