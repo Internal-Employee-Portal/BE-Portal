@@ -154,6 +154,7 @@ def get_full_employees(admin=Depends(require_admin), db: Session = Depends(get_d
         .join(Auth, Auth.user_id == Employee.id)
         .outerjoin(Department, and_(Department.id == Employee.department_id, Department.deleted_at == None))
         .filter(Employee.deleted_at.is_(None))
+        .order_by(Employee.last_name, Employee.first_name)
         .all()
     )
 
