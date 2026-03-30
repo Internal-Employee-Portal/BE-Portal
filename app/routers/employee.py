@@ -129,6 +129,8 @@ def get_my_info(user=Depends(get_current_user), db: Session = Depends(get_db)):
         "hire_date": emp.hire_date,
         "birth_date": emp.birth_date,
         "employee_code": emp.employee_code,
+        "last_name": emp.last_name,
+        "first_name": emp.first_name,
     }
 
 
