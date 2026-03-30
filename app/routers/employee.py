@@ -1,5 +1,5 @@
 from uuid import uuid4
-from sqlalchemy import and_
+from sqlalchemy import and_, or_
 from datetime import datetime
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
@@ -32,12 +32,26 @@ def create_employee(data: EmployeeCreate,
                     db: Session = Depends(get_db)):
 
     if data.role not in ["ADMIN", "USER"]:
-        raise HTTPException(status_code=400, detail="Invalid role")
+        raise HTTPException(status_code=400, detail="ROLE은 ADMIN, USER만 입력 가능합니다.")
 
     # 이메일 중복 체크
-    existing = db.query(Auth).filter(Auth.email == data.email).first()
+    existing = db.query(Auth).filter(Auth.email == data.email, Auth.deleted_at.is_(None)).first()
     if existing:
-        raise HTTPException(status_code=400, detail="Email already exists")
+        raise HTTPException(status_code=400, detail="이미 존재하는 이메일입니다.")
+
+    existing_emp = (
+        db.query(Employee)
+        .filter(
+            Employee.deleted_at.is_(None),
+            or_(
+                Employee.employee_code == data.employee_code if data.employee_code else False,
+                Employee.phone == data.phone if data.phone else False,
+            )
+        )
+        .first()
+    )
+    if existing_emp:
+        raise HTTPException(status_code=400, detail="이미 존재하는 사번 또는 전화번호입니다.")
 
     employee = Employee(
         id=uuid4(),
@@ -76,7 +90,7 @@ def get_employees(admin=Depends(require_admin), db: Session = Depends(get_db)):
 def get_admin_list(admin=Depends(require_admin),db: Session = Depends(get_db)):
     list = db.query(Employee.id, Employee.last_name, Employee.first_name, Auth.email, Employee.employee_code) \
         .join(Auth, Auth.user_id == Employee.id) \
-        .filter(Auth.role == "ADMIN", Auth.is_active == True, Employee.deleted_at.is_(None))\
+        .filter(and_(Auth.role == "ADMIN", Auth.is_active == True, Employee.deleted_at.is_(None)))\
         .all()
 
     return [r._asdict() for r in list]
@@ -87,18 +101,18 @@ def get_my_info(user=Depends(get_current_user), db: Session = Depends(get_db)):
     emp, auth = (
         db.query(Employee, Auth)
         .join(Auth, Auth.user_id == Employee.id)
-        .filter(Employee.id == user["user_id"], Employee.deleted_at.is_(None))
+        .filter(and_(Employee.id == user["user_id"], Employee.deleted_at.is_(None)))
         .first()
     )
 
     if not emp:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
 
     dept = None
     if emp.department_id:
         dept = (
             db.query(Department)
-            .filter(Department.id == emp.department_id, Department.deleted_at.is_(None))
+            .filter(and_(Department.id == emp.department_id, Department.deleted_at.is_(None)))
             .first()
         )
 
@@ -165,19 +179,19 @@ def get_employee(employee_id: str,
                  db: Session = Depends(get_db)):
 
     if user["role"] != "ADMIN" and user["user_id"] != employee_id:
-        raise HTTPException(status_code=403, detail="Forbidden")
+        raise HTTPException(status_code=403, detail="접근 권한이 없습니다.")
 
-    emp = db.query(Employee).filter(Employee.id == employee_id, Employee.deleted_at.is_(None)).first()
+    emp = db.query(Employee).filter(and_(Employee.id == employee_id, Employee.deleted_at.is_(None))).first()
     if not emp:
-        raise HTTPException(404)
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
 
-    auth = db.query(Auth).filter(Auth.user_id == emp.id, Auth.deleted_at.is_(None)).first()
+    auth = db.query(Auth).filter(and_(Auth.user_id == emp.id, Auth.deleted_at.is_(None))).first()
 
     latest_check = db.query(Background).filter(Background.employee_id == employee_id).order_by(Background.requested_at.desc()).first()
 
     dept = None
     if emp.department_id:
-        dept = db.query(Department.name).filter(Department.id == emp.department_id, Department.deleted_at.is_(None)).first()
+        dept = db.query(Department.name).filter(and_(Department.id == emp.department_id, Department.deleted_at.is_(None))).first()
 
     return {
         "email": auth.email,
@@ -207,15 +221,43 @@ def update_employee(
     db: Session = Depends(get_db)
 ):
     if user["role"] != "ADMIN" and user["user_id"] != employee_id:
-        raise HTTPException(status_code=403, detail="Forbidden")
+        raise HTTPException(status_code=403, detail="접근 권한이 없습니다.")
 
-    emp = db.query(Employee).filter(Employee.id == employee_id, Employee.deleted_at.is_(None)).first()
-    auth = db.query(Auth).filter(Auth.user_id == employee_id, Auth.deleted_at.is_(None)).first()
+    emp = db.query(Employee).filter(and_(Employee.id == employee_id, Employee.deleted_at.is_(None))).first()
+    auth = db.query(Auth).filter(and_(Auth.user_id == employee_id, Auth.deleted_at.is_(None))).first()
+
+    if not emp or not auth:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+
+    # 중복 체크 (사번 / 전화번호)
+    conditions = []
+
+    if data.employee_code:
+        conditions.append(Employee.employee_code == data.employee_code)
+
+    if data.phone:
+        conditions.append(Employee.phone == data.phone)
+
+    if conditions:
+        duplicate = (
+            db.query(Employee)
+            .filter(
+                and_(
+                Employee.deleted_at.is_(None),
+                Employee.id != employee_id,
+                or_(*conditions))
+            )
+            .first()
+        )
+
+        if duplicate:
+            if data.employee_code and duplicate.employee_code == data.employee_code:
+                raise HTTPException(status_code=400, detail="이미 존재하는 사번입니다.")
+            if data.phone and duplicate.phone == data.phone:
+                raise HTTPException(status_code=400, detail="이미 존재하는 전화번호입니다.")
+
 
     prev_status = emp.status
-
-    if not emp:
-        raise HTTPException(status_code=404, detail="Employee not found")
 
     # employee 업데이트
     for key, value in data.dict(exclude_unset=True).items():
@@ -238,16 +280,16 @@ def update_employee(
 def delete_employee(employee_id: str, db: Session = Depends(get_db), admin=Depends(require_admin)):
     employee = (
         db.query(Employee)
-        .filter(Employee.id == employee_id, Employee.deleted_at.is_(None))
+        .filter(and_(Employee.id == employee_id, Employee.deleted_at.is_(None)))
         .first()
     )
 
     if not employee:
-        raise HTTPException(status_code=404, detail="Employee not found")
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
 
     auth = (
         db.query(Auth)
-        .filter(Auth.user_id == employee_id, Auth.deleted_at.is_(None))
+        .filter(and_(Auth.user_id == employee_id, Auth.deleted_at.is_(None)))
         .first()
     )
 

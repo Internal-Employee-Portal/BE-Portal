@@ -1,6 +1,7 @@
 import os
 import httpx
 from dotenv import load_dotenv
+from sqlalchemy import and_
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, HTTPException, Depends
 
@@ -21,7 +22,7 @@ router = APIRouter(prefix="/background", tags=["background"])
 async def create(data: Create, admin=Depends(require_admin), db: Session = Depends(get_db)):
     emp = db.query(Employee).filter(Employee.id == data.employeeId).first()
     if not emp:
-        raise HTTPException(status_code=404, detail="Employee not found")
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
 
     url = f"{BASE_URL}/background-checks"
 

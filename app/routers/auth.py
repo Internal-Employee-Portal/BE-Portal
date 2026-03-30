@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import and_
 
 from app.database import get_db
 from app.models.auth import Auth
@@ -13,7 +14,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 @router.post("/login")
 def login(data: LoginRequest, db: Session = Depends(get_db)):
 
-    user = db.query(Auth).filter(Auth.email == data.email, Auth.deleted_at.is_(None)).first()
+    user = db.query(Auth).filter(and_(Auth.email == data.email, Auth.deleted_at.is_(None))).first()
 
     if not user:
         raise HTTPException(status_code=400, detail="이메일 또는 비밀번호가 올바르지 않습니다.")
@@ -33,7 +34,7 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
 
 @router.get("/{user_id}")
 def get_auth(user_id: str, db: Session = Depends(get_db)):
-    return db.query(Auth).filter(Auth.user_id == user_id).first()
+    return db.query(Auth).filter(and_(Auth.user_id == user_id, Auth.deleted_at.is_(None))).first()
 
 @router.patch("/change-password")
 def change_password(
@@ -43,9 +44,12 @@ def change_password(
 ):
     auth = (
         db.query(Auth)
-        .filter(Auth.user_id == current_user["user_id"], Auth.deleted_at.is_(None))
+        .filter(and_(Auth.user_id == current_user["user_id"], Auth.deleted_at.is_(None)))
         .first()
     )
+
+    if not auth:
+        raise HTTPException(status_code=404, detail="계정을 찾을 수 없습니다.")
 
     if not verify_password(body.current_password, auth.password_hash):
         raise HTTPException(status_code=400, detail="현재 비밀번호가 일치하지 않습니다.")
@@ -64,10 +68,10 @@ def change_password(
 
 @router.patch("/{user_id}")
 def update_auth(user_id: str, data: dict, db: Session = Depends(get_db)):
-    auth = db.query(Auth).filter(Auth.user_id == user_id).first()
+    auth = db.query(Auth).filter(and_(Auth.user_id == user_id, Auth.deleted_at.is_(None))).first()
 
     if not auth:
-        raise HTTPException(404)
+        raise HTTPException(status_code=404, detail="계정을 찾을 수 없습니다.")
 
     if "is_active" in data:
         auth.is_active = data["is_active"]

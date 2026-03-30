@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from datetime import datetime
 from uuid import UUID
+from sqlalchemy import and_
 
 from app.core.deps import require_admin
 from app.database import get_db
@@ -10,13 +11,20 @@ from app.schemas.department import (
     DepartmentCreate,
     DepartmentUpdate,
     DepartmentResponse,
-    DepartmentDetailResponse,
 )
 
 router = APIRouter(prefix="/departments", tags=["Departments"])
 
 @router.post("", response_model=DepartmentResponse)
 def create_department(data: DepartmentCreate, admin=Depends(require_admin),db: Session = Depends(get_db)):
+    existing = db.query(Department).filter(
+        and_(Department.deleted_at.is_(None),
+        Department.name.ilike(data.name.strip()))
+    ).first()
+
+    if existing:
+        raise HTTPException(status_code=400, detail="이미 존재하는 부서명입니다.")
+
     dept = Department(
         name=data.name,
         description=data.description,
@@ -58,19 +66,21 @@ def get_department_detail(department_id: UUID, admin=Depends(require_admin), db:
     dept = (
         db.query(Department)
         .filter(
-            Department.id == department_id,
-            Department.deleted_at == None
+            and_(
+                Department.id == department_id,
+                Department.deleted_at == None
+            )
         )
         .first()
     )
+
+    if not dept:
+        raise HTTPException(status_code=404, detail="부서를 찾을 수 없습니다.")
 
     dept.manager_full_name = ""
     if dept.manager_id:
         manager = db.query(Employee).filter(Employee.id == dept.manager_id).first()
         dept.manager_full_name = f"{manager.last_name} {manager.first_name}"
-
-    if not dept:
-        raise HTTPException(status_code=404, detail="Department not found")
 
     employees = (
         db.query(Employee)
@@ -89,14 +99,27 @@ def update_department(
     admin=Depends(require_admin)
 ):
     dept = db.query(Department).filter(
-        Department.id == department_id,
-        Department.deleted_at == None
+        and_(Department.id == department_id,
+        Department.deleted_at == None)
     ).first()
 
     if not dept:
-        raise HTTPException(status_code=404, detail="Department not found")
+        raise HTTPException(status_code=404, detail="부서를 찾을 수 없습니다.")
 
     if data.name is not None:
+        # 중복 체크
+        existing = db.query(Department).filter(
+            and_(Department.deleted_at.is_(None),
+            Department.id != department_id,
+            Department.name.ilike(data.name.strip()))
+        ).first()
+
+        if existing:
+            raise HTTPException(
+                status_code=400,
+                detail=f"이미 존재하는 부서명입니다."
+            )
+
         dept.name = data.name
 
     if data.description is not None:
@@ -112,12 +135,12 @@ def update_department(
 @router.delete("/{dept_id}")
 def remove_department(dept_id: str, db: Session = Depends(get_db), admin=Depends(require_admin)):
     department = db.query(Department).filter(
-        Department.id == dept_id,
-        Department.deleted_at.is_(None)
+        and_(Department.id == dept_id,
+        Department.deleted_at.is_(None))
     ).first()
 
     if not department:
-        raise HTTPException(status_code=404, detail="Department not found")
+        raise HTTPException(status_code=404, detail="부서를 찾을 수 없습니다.")
 
     db.query(Employee).filter(
         Employee.department_id == dept_id,
