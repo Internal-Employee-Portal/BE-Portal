@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 from datetime import datetime
 from uuid import UUID
-from sqlalchemy import and_
+from sqlalchemy import and_, func
 
 from app.core.deps import require_admin
 from app.database import get_db
@@ -38,28 +38,41 @@ def create_department(data: DepartmentCreate, admin=Depends(require_admin),db: S
 
 @router.get("")
 def get_departments(admin=Depends(require_admin), db: Session = Depends(get_db)):
+    Manager = aliased(Employee)  # 🔥 관리자용
+    Member = aliased(Employee)  # 🔥 직원용
+
     results = (
         db.query(
             Department,
-            Employee.first_name,
-            Employee.last_name
+            Manager.first_name,
+            Manager.last_name,
+            func.count(Member.id).label("employee_count")
         )
-        .outerjoin(Employee, Department.manager_id == Employee.id)
+        .outerjoin(Manager, Department.manager_id == Manager.id)
+        .outerjoin(Member,
+            and_(
+                Department.id == Member.department_id,
+                Member.deleted_at.is_(None)
+            ))
         .filter(Department.deleted_at == None)
+        .group_by(Department.id, Manager.first_name, Manager.last_name)
         .all()
     )
 
-    return {"departments": [
-        {
-            "id": dept.id,
-            "name": dept.name,
-            "description": dept.description,
-            "created_at": dept.created_at,
-            "manager_id": dept.manager_id,
-            "manager_full_name": f"{last} {first}" if last and first else "-"
-        }
-        for dept, first, last in results
-    ]}
+    return {
+        "departments": [
+            {
+                "id": dept.id,
+                "name": dept.name,
+                "description": dept.description,
+                "created_at": dept.created_at,
+                "manager_id": dept.manager_id,
+                "manager_full_name": f"{last} {first}" if last and first else "-",
+                "employee_count": count,
+            }
+            for dept, first, last, count in results
+        ]
+    }
 
 @router.get("/{department_id}")
 def get_department_detail(department_id: UUID, admin=Depends(require_admin), db: Session = Depends(get_db)):
@@ -79,12 +92,13 @@ def get_department_detail(department_id: UUID, admin=Depends(require_admin), db:
 
     dept.manager_full_name = ""
     if dept.manager_id:
-        manager = db.query(Employee).filter(Employee.id == dept.manager_id).first()
-        dept.manager_full_name = f"{manager.last_name} {manager.first_name}"
+        manager = db.query(Employee).filter(and_(Employee.id == dept.manager_id, Employee.deleted_at == None)).first()
+
+        dept.manager_full_name = f"{manager.last_name} {manager.first_name}" if manager else "-"
 
     employees = (
         db.query(Employee)
-        .filter(Employee.department_id == department_id)
+        .filter(and_(Employee.department_id == department_id, Employee.deleted_at == None))
         .all()
     )
 
